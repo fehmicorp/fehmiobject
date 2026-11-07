@@ -1,0 +1,34 @@
+# Go
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Storage
+/data/*
+!/data/.gitkeep
+
+# Logs
+/logs/*
+!/logs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+/build/
+/dist/
+*.bin
+
+# OS
+.DS_Store
+Thumbs.db
