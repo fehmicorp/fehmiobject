@@ -1,0 +1,84 @@
+name: Build and Publish Container Image
+
+on:
+  push:
+  
+    branches: [ "main", "build" ]
+  workflow_dispatch:
+    inputs:
+      service_context:
+        description: 'Subdirectory context for microservice (leave . for root/monolith)'
+        required: false
+        default: '.'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Build Context and Paths
+        id: context-setup
+        run: |
+          # Use workflow input if triggered manually, otherwise default to root or repo config
+          CONTEXT="${{ github.event.inputs.service_context || '.' }}"
+          echo "build_context=$CONTEXT" >> $GITHUB_OUTPUT
+          
+          # Determine image prefix name
+          REPO_NAME=$(basename "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          if [ "$CONTEXT" = "." ] || [ "$CONTEXT" = "" ]; then
+            SERVICE_PREFIX="$REPO_NAME"
+          else
+            SUB_DIR=$(basename "$CONTEXT")
+            SERVICE_PREFIX="${REPO_NAME}-${SUB_DIR}"
+          fi
+          echo "service_prefix=$SERVICE_PREFIX" >> $GITHUB_OUTPUT
+
+      - name: Generate Version and Date Tags
+        id: vars
+        working-directory: ${{ steps.context-setup.outputs.build_context }}
+        run: |
+          SHORT_DATE=$(date +%Y%m%d)
+          
+          # Extract version from package.json (Node) or fallback to 1.0.0
+          if [ -f "package.json" ]; then
+            VERSION=$(jq -r '.version // "1.0.0"' package.json)
+          elif [ -f "go.mod" ]; then
+            VERSION="1.0.0"
+          else
+            VERSION="1.0.0"
+          fi
+          
+          PREFIX="${{ steps.context-setup.outputs.service_prefix }}"
+          TAG_NAME="${PREFIX}_${SHORT_DATE}:${VERSION}"
+          
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Generated Image Tag: $TAG_NAME"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Container Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.context-setup.outputs.build_context }}
+          file: ${{ steps.context-setup.outputs.build_context }}/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.vars.outputs.tag_name }}
+            ${{ env.REGISTRY }}/${{ github.repository }}:latest
