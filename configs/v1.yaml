@@ -1,4 +1,3 @@
-
 app:
   name: fehmi-s3
   version: 1.0.0
@@ -14,9 +13,9 @@ server:
   max_header_bytes: 1048576
 
 database:
-  host: localhost
+  host: host.docker.internal
   port: 5432
-  name: fcobject
+  name: s3object
   user: postgres
   password: "mysecretpassword"
   sslmode: disable
@@ -24,7 +23,7 @@ database:
   min_connections: 5
 
 cache:
-  host: localhost
+  host: host.docker.internal
   port: 6379
   password: "yourSecurePassword123"
   database: 0
@@ -32,8 +31,10 @@ cache:
 
 storage:
   driver: filesystem
-  path: ./data
-  staging_path: ./data/staging
+  path: /data
+  staging_path: /data/staging
+  hot_path: /data/hot
+  persistent_path: /data/persistent
   max_upload_size: 10737418240
   chunk_size: 16777216
 
