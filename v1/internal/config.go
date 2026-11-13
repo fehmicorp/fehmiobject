@@ -1,8 +1,9 @@
-package main
+package internal
 
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -18,6 +19,7 @@ type Config struct {
 		Host           string        `yaml:"host"`
 		Port           int           `yaml:"port"`
 		AdminPort      int           `yaml:"admin_port"`
+		InitialSlug    string        `yaml:"slug"`
 		ReadTimeout    time.Duration `yaml:"read_timeout"`
 		WriteTimeout   time.Duration `yaml:"write_timeout"`
 		IdleTimeout    time.Duration `yaml:"idle_timeout"`
@@ -70,19 +72,33 @@ type Config struct {
 }
 
 func LoadConfig(file string) (*Config, error) {
-	b, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
+	c := defaultConfig()
+	if file != "" {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("read config file: %w", err)
+		}
+		if err = yaml.Unmarshal(b, c); err != nil {
+			return nil, fmt.Errorf("unmarshal yaml: %w", err)
+		}
 	}
-	c := new(Config)
-	if err = yaml.Unmarshal(b, c); err != nil {
-		return nil, err
-	}
-	env("FEHMI_DB_PASSWORD", &c.Database.Password)
-	env("FEHMI_CACHE_PASSWORD", &c.Cache.Password)
-	env("FEHMI_STORAGE_HOT_PATH", &c.Storage.HotPath)
-	env("FEHMI_STORAGE_PERSISTENT_PATH", &c.Storage.PersistentPath)
-	env("FEHMI_STORAGE_STAGING_PATH", &c.Storage.StagingPath)
+
+	// Override important fields from Environment Variables
+	envStr("S3_ENV", &c.App.Environment)
+	envStr("S3_HOST", &c.Server.Host)
+	envInt("S3_PORT", &c.Server.Port)
+	envInt("S3_ADMIN_PORT", &c.Server.AdminPort)
+	envStr("S3_SLUG", &c.Server.InitialSlug)
+	envStr("S3_DB_HOST", &c.Database.Host)
+	envInt("S3_DB_PORT", &c.Database.Port)
+	envStr("S3_DB_NAME", &c.Database.Name)
+	envStr("S3_DB_USERNAME", &c.Database.User)
+	envStr("S3_DB_PASSWORD", &c.Database.Password)
+	envStr("S3_DB_SSLMODE", &c.Database.SSLMode)
+	envStr("S3_CACHE_HOST", &c.Cache.Host)
+	envInt("S3_CACHE_PORT", &c.Cache.Port)
+	envStr("S3_CACHE_PASSWORD", &c.Cache.Password)
+
 	if c.Storage.HotPath == "" {
 		c.Storage.HotPath = c.Storage.Path + "/hot"
 	}
@@ -121,8 +137,81 @@ func LoadConfig(file string) (*Config, error) {
 	}
 	return c, nil
 }
-func env(k string, p *string) {
+
+func envStr(k string, p *string) {
 	if v := os.Getenv(k); v != "" {
 		*p = v
 	}
+}
+
+func envInt(k string, p *int) {
+	if v := os.Getenv(k); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			*p = parsed
+		}
+	}
+}
+
+func envBool(k string, p *bool) {
+	if v := os.Getenv(k); v != "" {
+		if parsed, err := strconv.ParseBool(v); err == nil {
+			*p = parsed
+		}
+	}
+}
+
+func defaultConfig() *Config {
+	c := &Config{}
+	// App
+	c.App.Name = "fehmi-s3"
+	c.App.Version = "0.1.0"
+	c.App.Environment = "production"
+
+	// Server
+	c.Server.Host = "0.0.0.0"
+	c.Server.Port = 9000
+	c.Server.AdminPort = 9001
+	c.Server.InitialSlug = "/"
+	c.Server.ReadTimeout = 300 * time.Second
+	c.Server.WriteTimeout = 300 * time.Second
+	c.Server.IdleTimeout = 120 * time.Second
+	c.Server.MaxHeaderBytes = 1 << 20 // 1 MB
+
+	// Database (PostgreSQL)
+	c.Database.Host = "localhost"
+	c.Database.Port = 5432
+	c.Database.SSLMode = "disable"
+	c.Database.MaxConnections = 20
+	c.Database.MinConnections = 2
+
+	// Cache (Valkey / Redis)
+	c.Cache.Host = "localhost"
+	c.Cache.Port = 6379
+	c.Cache.Database = 0
+	c.Cache.DefaultTTL = 15 * time.Minute
+
+	// Storage
+	c.Storage.Driver = "filesystem"
+	c.Storage.MaxUploadSize = 10 << 30 // 10 GB
+	c.Storage.ChunkSize = 8 << 20      // 8 MB
+
+	// Security
+	c.Security.ChecksumAlgorithm = "sha256"
+	c.Security.SignatureVersion = "v4"
+	c.Security.PresignedURLExpiry = 15 * time.Minute
+
+	// Audit
+	c.Audit.Enabled = true
+	c.Audit.RetentionDays = 90
+
+	// Logging
+	c.Logging.Level = "info"
+	c.Logging.Format = "json"
+	c.Logging.Output = "stdout"
+
+	// Metrics
+	c.Metrics.Enabled = true
+	c.Metrics.Path = "/metrics"
+
+	return c
 }

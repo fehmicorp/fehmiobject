@@ -1,4 +1,4 @@
-module github.com/fehmicorp/s3object
+module github.com/fehmicorp/s3object/v1
 
 go 1.25
 

@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"crypto/hmac"
@@ -21,7 +21,7 @@ type Authenticator struct {
 
 func NewAuthenticator() (*Authenticator, error) {
 	a := &Authenticator{Keys: map[string]string{}, Region: "us-east-1"}
-	if raw := os.Getenv("FEHMI_API_KEYS"); raw != "" {
+	if raw := os.Getenv("S3_API_KEYS"); raw != "" {
 		var m map[string]string
 		if err := json.Unmarshal([]byte(raw), &m); err != nil {
 			return nil, err
@@ -32,11 +32,11 @@ func NewAuthenticator() (*Authenticator, error) {
 			}
 		}
 	}
-	if k, s := os.Getenv("FEHMI_ACCESS_KEY"), os.Getenv("FEHMI_SECRET_KEY"); k != "" && s != "" {
+	if k, s := os.Getenv("S3_ACCESS_KEY"), os.Getenv("S3_SECRET_KEY"); k != "" && s != "" {
 		a.Keys[k] = s
 	}
 	if len(a.Keys) == 0 {
-		return nil, errors.New("set FEHMI_ACCESS_KEY and FEHMI_SECRET_KEY, or FEHMI_API_KEYS JSON")
+		return nil, errors.New("set S3_ACCESS_KEY and S3_SECRET_KEY, or S3_API_KEYS JSON")
 	}
 	return a, nil
 }

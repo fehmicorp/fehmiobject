@@ -1,10 +1,11 @@
-package main
+package internal
 
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type Cache struct{ Client *redis.Client }
