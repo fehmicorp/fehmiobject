@@ -1,0 +1,58 @@
+app:
+  name: fehmi-s3
+  version: 1.0.0
+  environment: development
+
+server:
+  host: 0.0.0.0
+  port: 9000
+  admin_port: 9001
+  slug: /s3
+  read_timeout: 300s
+  write_timeout: 300s
+  idle_timeout: 120s
+  max_header_bytes: 1048576
+
+database:
+  host: localhost
+  port: 27017
+  name: s3object
+  user: admin
+  password: "Password@321"
+  sslmode: disable
+  max_connections: 50
+  min_connections: 5
+
+cache:
+  host: localhost
+  port: 6379
+  password: "yourSecurePassword123"
+  database: 0
+  default_ttl: 300s
+
+storage:
+  driver: filesystem
+  path: /data
+  staging_path: /data/staging
+  hot_path: /data/hot
+  persistent_path: /data/persistent
+  max_upload_size: 10737418240
+  chunk_size: 16777216
+
+security:
+  checksum_algorithm: sha256
+  signature_version: AWS4-HMAC-SHA256
+  presigned_url_expiry: 900s
+
+audit:
+  enabled: true
+  retention_days: 90
+
+logging:
+  level: info
+  format: json
+  output: stdout
+
+metrics:
+  enabled: true
+  path: /metrics
